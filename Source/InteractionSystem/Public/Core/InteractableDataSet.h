@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "Engine/DataTable.h"
-#include "InteractableData.generated.h"
+#include "Engine/DataAsset.h"
+#include "InteractableDataSet.generated.h"
+
+class UInputAction;
 
 USTRUCT(BlueprintType)
-struct FInteractableData : public FTableRowBase
+struct FInteractableData
 {
 	GENERATED_BODY()
 	
@@ -21,4 +23,17 @@ struct FInteractableData : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	float InteractionDuration{0.0f};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<const UInputAction> InteractionAction;
+};
+
+UCLASS()
+class INTERACTIONSYSTEM_API UInteractableDataSet : public UPrimaryDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere)
+	TMap<FName, FInteractableData> InteractableData;
 };
