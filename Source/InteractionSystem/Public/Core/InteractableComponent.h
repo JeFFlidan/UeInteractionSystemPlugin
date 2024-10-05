@@ -43,7 +43,7 @@ protected:
 	
 	UPROPERTY()
 	TObjectPtr<USphereComponent> DetectionSphere;
-	
+
 	FInteractableData* InteractableData{nullptr};
 	
 	virtual void BeginPlay() override;

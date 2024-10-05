@@ -7,6 +7,13 @@
 
 class UInputAction;
 
+UENUM(BlueprintType)
+enum class EInteractionInputType : uint8
+{
+	Press UMETA(DisplayName = "Press"),
+	Hold UMETA(DisplayName = "Hold")
+};
+
 USTRUCT(BlueprintType)
 struct FInteractableData
 {
@@ -26,6 +33,9 @@ struct FInteractableData
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<const UInputAction> InteractionAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	EInteractionInputType InteractionInputType{EInteractionInputType::Press};
 };
 
 UCLASS()
@@ -36,4 +46,8 @@ class INTERACTIONSYSTEM_API UInteractableDataSet : public UPrimaryDataAsset
 public:
 	UPROPERTY(EditAnywhere)
 	TMap<FName, FInteractableData> InteractableData;
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 };
