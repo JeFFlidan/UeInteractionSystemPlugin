@@ -7,17 +7,56 @@
 #include "LogChannels.h"
 
 #include "Components/SphereComponent.h"
+#include "GameFramework/Pawn.h"
+#include "EnhancedInputComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InteractableComponent)
 
 UInteractableComponent::UInteractableComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	CurrentInteractionTime = 0.0f;
+	InteractableData = nullptr;
+	HoldReleaseBindingHandle = 0;
 }
 
 void UInteractableComponent::Interact(UInteractorComponent* Interactor)
 {
-	OnInteract.Broadcast(Interactor, this);
+	check(Interactor);
+	CurrentInteractor = Interactor;
+	
+	switch (InteractableData->InteractionInputType)
+	{
+	case EInteractionInputType::Press:
+	{
+		OnInteract.Broadcast(CurrentInteractor, this);
+		break;
+	}
+	case EInteractionInputType::Hold:
+	{
+		BindHoldReleaseActionBinding();
+		
+		GetWorld()->GetTimerManager().SetTimer(InteractionTimerHandle, FTimerDelegate::CreateLambda([this, &Interactor]
+		{
+			OnInteract.Broadcast(CurrentInteractor, this);
+			CurrentInteractor->RemoveHoldInteractable(this);
+		}), InteractableData->InteractionDuration, false);
+
+		break;
+	}
+	}
+}
+
+void UInteractableComponent::UpdateCurrentInteractionTime(float DeltaTime)
+{
+	if (CurrentInteractionTime + DeltaTime < InteractableData->InteractionDuration)
+	{
+		CurrentInteractionTime += DeltaTime;
+	}
+	else
+	{
+		CurrentInteractionTime = InteractableData->InteractionDuration;
+	}
 }
 
 void UInteractableComponent::BP_GetInteractableData(FInteractableData& OutInteractableData) const
@@ -37,6 +76,13 @@ void UInteractableComponent::BeginPlay()
 	Super::BeginPlay();
 	FindInteractableData();
 	CreateDetectionSphere();
+}
+
+void UInteractableComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnbindHoldReleaseActionBinding();
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void UInteractableComponent::CreateDetectionSphere()
@@ -60,8 +106,8 @@ void UInteractableComponent::CreateDetectionSphere()
 	DetectionSphere->SetGenerateOverlapEvents(true);
 	DetectionSphere->SetCollisionResponseToAllChannels(ECR_Overlap);
 
-	DetectionSphere->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::BeginOverlap);
-	DetectionSphere->OnComponentEndOverlap.AddDynamic(this, &ThisClass::EndOverlap);
+	DetectionSphere->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap_Implementation);
+	DetectionSphere->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap_Implementation);
 }
 
 void UInteractableComponent::FindInteractableData()
@@ -81,7 +127,33 @@ void UInteractableComponent::FindInteractableData()
 		*InteractableDataName.ToString());
 }
 
-void UInteractableComponent::BeginOverlap(
+void UInteractableComponent::ResetInteractionTime()
+{
+	GetWorld()->GetTimerManager().ClearTimer(InteractionTimerHandle);
+	CurrentInteractionTime = 0.0f;
+}
+
+void UInteractableComponent::BindHoldReleaseActionBinding()
+{
+	HoldReleaseBindingHandle = GetInputComponent()->BindAction(InteractableData->InteractionAction, ETriggerEvent::Completed,
+			this, &ThisClass::ResetInteractionTime).GetHandle();
+}
+
+void UInteractableComponent::UnbindHoldReleaseActionBinding()
+{
+	if (HoldReleaseBindingHandle)
+	{
+		GetInputComponent()->RemoveBindingByHandle(HoldReleaseBindingHandle);
+		HoldReleaseBindingHandle = 0;
+	}
+}
+
+UEnhancedInputComponent* UInteractableComponent::GetInputComponent() const
+{
+	return CastChecked<UEnhancedInputComponent>(CurrentInteractor->GetOwner()->InputComponent);
+}
+
+void UInteractableComponent::OnBeginOverlap_Implementation(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -91,12 +163,12 @@ void UInteractableComponent::BeginOverlap(
 {
 	if (UInteractorComponent* Interactor = UInteractorComponent::FindInteractorComponent(OtherActor))
 	{
-		Interactor->AddInteractable(this);
+		Interactor->AddOverlappedInteractable(this);
 		OnBeginOverlap.Broadcast(Interactor, this);
 	}
 }
 
-void UInteractableComponent::EndOverlap(
+void UInteractableComponent::OnEndOverlap_Implementation(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,
 	UPrimitiveComponent* OtherComp,
@@ -104,7 +176,8 @@ void UInteractableComponent::EndOverlap(
 {
 	if (UInteractorComponent* Interactor = UInteractorComponent::FindInteractorComponent(OtherActor))
 	{
-		Interactor->RemoveInteractable(this);
+		UnbindHoldReleaseActionBinding();
+		Interactor->RemoveOverlappedInteractable(this);
 		OnEndOverlap.Broadcast(Interactor, this);
 	}
 }

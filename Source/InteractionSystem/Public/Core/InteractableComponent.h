@@ -7,7 +7,9 @@
 
 class USphereComponent;
 class UInteractorComponent;
+class UEnhancedInputComponent;
 struct FInteractableData;
+struct FEnhancedInputActionEventBinding;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractableStateChanged, UInteractorComponent*, Interactor, UInteractableComponent*, Interactable);
 
@@ -30,8 +32,11 @@ public:
 
 	UFUNCTION()
 	void Interact(UInteractorComponent* Interactor);
+
+	void UpdateCurrentInteractionTime(float DeltaTime);
 	
 	FInteractableData* GetInteractableData() const { return InteractableData; }
+	float GetCurrentInteractionTime() const { return CurrentInteractionTime; }
 
 	UFUNCTION(BlueprintCallable, Category = "Interactable", meta = (DisplayName = "Get Interactable Data"))
 	void BP_GetInteractableData(UPARAM(DisplayName = "Interactable Data") FInteractableData& OutInteractableData) const;
@@ -44,15 +49,27 @@ protected:
 	UPROPERTY()
 	TObjectPtr<USphereComponent> DetectionSphere;
 
-	FInteractableData* InteractableData{nullptr};
+	// Cached interactor. Set up in Interact function.
+	UPROPERTY()
+	TObjectPtr<UInteractorComponent> CurrentInteractor;
+
+	FInteractableData* InteractableData;
+	FTimerHandle InteractionTimerHandle;
+	float CurrentInteractionTime;
+	uint32 HoldReleaseBindingHandle;
 	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void CreateDetectionSphere();
 	void FindInteractableData();
+	void ResetInteractionTime();
+	void BindHoldReleaseActionBinding();
+	void UnbindHoldReleaseActionBinding();
+	UEnhancedInputComponent* GetInputComponent() const;
 
 	UFUNCTION()
-	void BeginOverlap(
+	void OnBeginOverlap_Implementation(
 		UPrimitiveComponent* OverlappedComponent,
 		AActor* OtherActor, 
 		UPrimitiveComponent* OtherComp, 
@@ -61,7 +78,7 @@ protected:
 		const FHitResult& SweepResult);
 
 	UFUNCTION()
-	void EndOverlap(
+	void OnEndOverlap_Implementation(
 		UPrimitiveComponent* OverlappedComponent,
 		AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, 

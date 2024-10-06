@@ -22,15 +22,19 @@ public:
 		return Actor ? Actor->FindComponentByClass<UInteractorComponent>() : nullptr;
 	}
 
-	void AddInteractable(UInteractableComponent* InteractableComponent);
-	void RemoveInteractable(UInteractableComponent* InteractableComponent);
+	void AddOverlappedInteractable(UInteractableComponent* Interactable);
+	void RemoveOverlappedInteractable(UInteractableComponent* Interactable);
+	void RemoveHoldInteractable(UInteractableComponent* Interactable);
 
 	UFUNCTION(BlueprintCallable, Category = "Interactor")
 	void Interact();
 
 protected:
 	UPROPERTY()
-	TArray<TObjectPtr<UInteractableComponent>> ActiveInteractables;
+	TArray<TObjectPtr<UInteractableComponent>> OverlappedInteractables;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UInteractableComponent>> HoldInteractables;
 
 	UPROPERTY()
 	TArray<TObjectPtr<const UInputAction>> InteractionInputActions;
@@ -39,6 +43,7 @@ protected:
 	TArray<TObjectPtr<const UInputAction>> ActiveInteractionInputActions;
 	
 	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	void FindInteractionInputActions();
 	void BindInteractionInputActions();

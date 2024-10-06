@@ -2,36 +2,52 @@
 
 #include "Core/InteractorComponent.h"
 #include "Core/InteractableDataSet.h"
+#include "Core/InteractableComponent.h"
 #include "Core/InteractionSystemSettings.h"
 
 #include "InputAction.h"
 #include "EnhancedInputComponent.h"
-#include "Core/InteractableComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InteractorComponent)
 
 UInteractorComponent::UInteractorComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UInteractorComponent::AddInteractable(UInteractableComponent* InteractableComponent)
+void UInteractorComponent::AddOverlappedInteractable(UInteractableComponent* Interactable)
 {
-	ActiveInteractables.AddUnique(InteractableComponent);
+	OverlappedInteractables.AddUnique(Interactable);
 }
 
-void UInteractorComponent::RemoveInteractable(UInteractableComponent* InteractableComponent)
+void UInteractorComponent::RemoveOverlappedInteractable(UInteractableComponent* Interactable)
 {
-	ActiveInteractables.Remove(InteractableComponent);
+	OverlappedInteractables.Remove(Interactable);
+}
+
+void UInteractorComponent::RemoveHoldInteractable(UInteractableComponent* Interactable)
+{
+	HoldInteractables.Remove(Interactable);
 }
 
 void UInteractorComponent::Interact()
 {
-	for (UInteractableComponent* Interactable : ActiveInteractables)
+	for (UInteractableComponent* Interactable : OverlappedInteractables)
 	{
+		if (!IsValid(Interactable))
+		{
+			HoldInteractables.Remove(Interactable);
+			continue;
+		}
+		
 		if (ActiveInteractionInputActions.Contains(Interactable->GetInteractableData()->InteractionAction))
 		{
 			Interactable->Interact(this);
+
+			if (Interactable->GetInteractableData()->InteractionInputType == EInteractionInputType::Hold)
+			{
+				HoldInteractables.Add(Interactable);
+			}
 		}
 	}
 }
@@ -41,6 +57,14 @@ void UInteractorComponent::BeginPlay()
 	Super::BeginPlay();
 	FindInteractionInputActions();
 	BindInteractionInputActions();
+}
+
+void UInteractorComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	for (UInteractableComponent* Interactable : HoldInteractables)
+	{
+		Interactable->UpdateCurrentInteractionTime(DeltaTime);
+	}
 }
 
 void UInteractorComponent::FindInteractionInputActions()
@@ -58,8 +82,7 @@ void UInteractorComponent::FindInteractionInputActions()
 
 void UInteractorComponent::BindInteractionInputActions()
 {
-	APawn* Owner = CastChecked<APawn>(GetOwner());
-	UEnhancedInputComponent* InputComponent = CastChecked<UEnhancedInputComponent>(Owner->InputComponent);
+	UEnhancedInputComponent* InputComponent = CastChecked<UEnhancedInputComponent>(GetOwner()->InputComponent);
 	
 	for (const UInputAction* InputAction : InteractionInputActions)
 	{
