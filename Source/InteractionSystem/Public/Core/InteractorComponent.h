@@ -35,22 +35,6 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractableComponent>> HoldInteractables;
-
-	UPROPERTY()
-	TArray<TObjectPtr<const UInputAction>> InteractionInputActions;
-
-	UPROPERTY()
-	TArray<TObjectPtr<const UInputAction>> ActiveInteractionInputActions;
 	
-	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	void FindInteractionInputActions();
-	void BindInteractionInputActions();
-
-	UFUNCTION()
-	void OnInputActionPressed(const UInputAction* InputAction);
-
-	UFUNCTION()
-	void OnInputActionReleased(const UInputAction* InputAction);
 };

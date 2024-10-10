@@ -2,21 +2,20 @@
 
 #include "Core/InteractableComponent.h"
 #include "Core/InteractorComponent.h"
-#include "Core/InteractableDataSet.h"
-#include "Core/InteractionSystemSettings.h"
 #include "LogChannels.h"
 
-#include "Components/SphereComponent.h"
+#include "InputAction.h"
 #include "GameFramework/Pawn.h"
 #include "EnhancedInputComponent.h"
+#include "Components/PrimitiveComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InteractableComponent)
 
 UInteractableComponent::UInteractableComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 	CurrentInteractionTime = 0.0f;
-	InteractableData = nullptr;
 	HoldReleaseBindingHandle = 0;
 }
 
@@ -25,7 +24,7 @@ void UInteractableComponent::Interact(UInteractorComponent* Interactor)
 	check(Interactor);
 	CurrentInteractor = Interactor;
 	
-	switch (InteractableData->InteractionInputType)
+	switch (InteractableData.InteractionInputType)
 	{
 	case EInteractionInputType::Press:
 	{
@@ -36,11 +35,11 @@ void UInteractableComponent::Interact(UInteractorComponent* Interactor)
 	{
 		BindHoldReleaseActionBinding();
 		
-		GetWorld()->GetTimerManager().SetTimer(InteractionTimerHandle, FTimerDelegate::CreateLambda([this, &Interactor]
+		GetWorld()->GetTimerManager().SetTimer(InteractionTimerHandle, FTimerDelegate::CreateLambda([this]
 		{
 			OnInteract.Broadcast(CurrentInteractor, this);
 			CurrentInteractor->RemoveHoldInteractable(this);
-		}), InteractableData->InteractionDuration, false);
+		}), InteractableData.InteractionDuration, false);
 
 		break;
 	}
@@ -49,82 +48,39 @@ void UInteractableComponent::Interact(UInteractorComponent* Interactor)
 
 void UInteractableComponent::UpdateCurrentInteractionTime(float DeltaTime)
 {
-	if (CurrentInteractionTime + DeltaTime < InteractableData->InteractionDuration)
+	if (CurrentInteractionTime + DeltaTime < InteractableData.InteractionDuration)
 	{
 		CurrentInteractionTime += DeltaTime;
 	}
 	else
 	{
-		CurrentInteractionTime = InteractableData->InteractionDuration;
-	}
-}
-
-void UInteractableComponent::BP_GetInteractableData(FInteractableData& OutInteractableData) const
-{
-	if (InteractableData)
-	{
-		OutInteractableData = *InteractableData;
-	}
-	else
-	{
-		OutInteractableData = FInteractableData();
+		CurrentInteractionTime = InteractableData.InteractionDuration;
 	}
 }
 
 void UInteractableComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	FindInteractableData();
-	CreateDetectionSphere();
+	SetupOverlapCallbacks();
 }
 
 void UInteractableComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindHoldReleaseActionBinding();
-	
 	Super::EndPlay(EndPlayReason);
 }
 
-void UInteractableComponent::CreateDetectionSphere()
+void UInteractableComponent::SetupOverlapCallbacks()
 {
 	AActor* Owner = GetOwner();
-	DetectionSphere = CastChecked<USphereComponent>(Owner->AddComponentByClass(
-		USphereComponent::StaticClass(), true, Owner->GetTransform(), false));
-	Owner->SetRootComponent(DetectionSphere);
+	check(Owner);
+	PrimitiveComponent = Owner->FindComponentByClass<UPrimitiveComponent>();
 	
-	if (InteractableData)
-	{
-		UE_LOG(LogInteractionSystem, Display, TEXT("Detection Distance: %f"), InteractableData->DetectionDistance)
-		DetectionSphere->InitSphereRadius(InteractableData->DetectionDistance);
-	}
-	else
-	{
-		constexpr float SphereRadius = 192.0f;
-		DetectionSphere->InitSphereRadius(SphereRadius);
-	}
-	
-	DetectionSphere->SetGenerateOverlapEvents(true);
-	DetectionSphere->SetCollisionResponseToAllChannels(ECR_Overlap);
+	PrimitiveComponent->SetGenerateOverlapEvents(true);
+	PrimitiveComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
 
-	DetectionSphere->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap_Implementation);
-	DetectionSphere->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap_Implementation);
-}
-
-void UInteractableComponent::FindInteractableData()
-{
-	const UInteractionSystemSettings* Settings = GetDefault<UInteractionSystemSettings>();
-
-	for (const TSoftObjectPtr<UInteractableDataSet>& DataAsset : Settings->InteractableDataAssets)
-	{
-		InteractableData = DataAsset.LoadSynchronous()->InteractableData.Find(InteractableDataName);
-		if (InteractableData)
-		{
-			return;
-		}
-	}
-
-	UE_LOG(LogInteractionSystem, Error, TEXT("Failed to find Interactable Data with name [%s]"),
-		*InteractableDataName.ToString());
+	PrimitiveComponent->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap_Implementation);
+	PrimitiveComponent->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap_Implementation);
 }
 
 void UInteractableComponent::ResetInteractionTime()
@@ -135,7 +91,7 @@ void UInteractableComponent::ResetInteractionTime()
 
 void UInteractableComponent::BindHoldReleaseActionBinding()
 {
-	HoldReleaseBindingHandle = GetInputComponent()->BindAction(InteractableData->InteractionAction, ETriggerEvent::Completed,
+	HoldReleaseBindingHandle = GetInputComponent()->BindAction(InteractableData.InteractionAction, ETriggerEvent::Completed,
 			this, &ThisClass::ResetInteractionTime).GetHandle();
 }
 

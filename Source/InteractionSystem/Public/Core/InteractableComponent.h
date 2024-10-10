@@ -5,13 +5,42 @@
 #include "Components/ActorComponent.h"
 #include "InteractableComponent.generated.h"
 
-class USphereComponent;
+class UPrimitiveComponent;
 class UInteractorComponent;
 class UEnhancedInputComponent;
+class UInputAction;
 struct FInteractableData;
 struct FEnhancedInputActionEventBinding;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractableStateChanged, UInteractorComponent*, Interactor, UInteractableComponent*, Interactable);
+
+UENUM(BlueprintType)
+enum class EInteractionInputType : uint8
+{
+	Press UMETA(DisplayName = "Press"),
+	Hold UMETA(DisplayName = "Hold")
+};
+
+USTRUCT(BlueprintType)
+struct FInteractableData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "User Interface")
+	FText DisplayText{FText::GetEmpty()};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "User Interface")
+	FText DescriptionText{FText::GetEmpty()};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionDuration{0.0f};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	TObjectPtr<UInputAction> InteractionAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	EInteractionInputType InteractionInputType{EInteractionInputType::Press};
+};
 
 UCLASS(Blueprintable, ClassGroup=(InteractionSystem), meta=(BlueprintSpawnableComponent))
 class INTERACTIONSYSTEM_API UInteractableComponent : public UActorComponent
@@ -34,26 +63,23 @@ public:
 	void Interact(UInteractorComponent* Interactor);
 
 	void UpdateCurrentInteractionTime(float DeltaTime);
-	
-	FInteractableData* GetInteractableData() const { return InteractableData; }
-	float GetCurrentInteractionTime() const { return CurrentInteractionTime; }
 
 	UFUNCTION(BlueprintCallable, Category = "Interactable", meta = (DisplayName = "Get Interactable Data"))
-	void BP_GetInteractableData(UPARAM(DisplayName = "Interactable Data") FInteractableData& OutInteractableData) const;
-
+	const FInteractableData& GetInteractableData() const { return InteractableData; }
+	float GetCurrentInteractionTime() const { return CurrentInteractionTime; }
+	
 protected:
 	// Row name from Interactable Data Table
 	UPROPERTY(EditDefaultsOnly, Category = "Interactable")
-	FName InteractableDataName;
+	FInteractableData InteractableData;
 	
 	UPROPERTY()
-	TObjectPtr<USphereComponent> DetectionSphere;
+	TObjectPtr<UPrimitiveComponent> PrimitiveComponent;
 
 	// Cached interactor. Set up in Interact function.
 	UPROPERTY()
 	TObjectPtr<UInteractorComponent> CurrentInteractor;
 
-	FInteractableData* InteractableData;
 	FTimerHandle InteractionTimerHandle;
 	float CurrentInteractionTime;
 	uint32 HoldReleaseBindingHandle;
@@ -61,8 +87,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	void CreateDetectionSphere();
-	void FindInteractableData();
+	void SetupOverlapCallbacks();
 	void ResetInteractionTime();
 	void BindHoldReleaseActionBinding();
 	void UnbindHoldReleaseActionBinding();
