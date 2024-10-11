@@ -7,6 +7,8 @@
 
 class UInputAction;
 class UInteractableComponent;
+class UEnhancedInputComponent;
+struct FEnhancedInputActionEventBinding;
 
 UCLASS(Blueprintable, ClassGroup=(InteractionSystem), meta=(BlueprintSpawnableComponent))
 class INTERACTIONSYSTEM_API UInteractorComponent : public UActorComponent
@@ -34,7 +36,16 @@ protected:
 	TArray<TObjectPtr<UInteractableComponent>> OverlappedInteractables;
 
 	UPROPERTY()
+	TArray<TObjectPtr<UInteractableComponent>> InteractablesToActivate;
+	
+	UPROPERTY()
 	TArray<TObjectPtr<UInteractableComponent>> HoldInteractables;
 	
+	TArray<const FEnhancedInputActionEventBinding*> InteractionActionEventBindings;
+	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	UEnhancedInputComponent* GetInputComponent() const;
+	void BindInteractionInputAction(UInputAction* InputAction);
+	void HandleInteractionInputActionActivation(UInputAction* InputAction);
 };

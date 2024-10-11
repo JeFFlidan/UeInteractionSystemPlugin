@@ -3,6 +3,8 @@
 #include "Core/InteractorComponent.h"
 #include "Core/InteractableComponent.h"
 
+#include "EnhancedInputComponent.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InteractorComponent)
 
 UInteractorComponent::UInteractorComponent()
@@ -13,6 +15,7 @@ UInteractorComponent::UInteractorComponent()
 void UInteractorComponent::AddOverlappedInteractable(UInteractableComponent* Interactable)
 {
 	OverlappedInteractables.AddUnique(Interactable);
+	BindInteractionInputAction(Interactable->GetInteractableData().InteractionAction);
 }
 
 void UInteractorComponent::RemoveOverlappedInteractable(UInteractableComponent* Interactable)
@@ -27,14 +30,8 @@ void UInteractorComponent::RemoveHoldInteractable(UInteractableComponent* Intera
 
 void UInteractorComponent::Interact()
 {
-	for (UInteractableComponent* Interactable : OverlappedInteractables)
+	for (UInteractableComponent* Interactable : InteractablesToActivate)
 	{
-		if (!IsValid(Interactable))
-		{
-			HoldInteractables.Remove(Interactable);
-			continue;
-		}
-		
 		Interactable->Interact(this);
 
 		if (Interactable->GetInteractableData().InteractionInputType == EInteractionInputType::Hold)
@@ -42,6 +39,8 @@ void UInteractorComponent::Interact()
 			HoldInteractables.Add(Interactable);
 		}
 	}
+
+	InteractablesToActivate.Reset();
 }
 
 void UInteractorComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -49,5 +48,40 @@ void UInteractorComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	for (UInteractableComponent* Interactable : HoldInteractables)
 	{
 		Interactable->UpdateCurrentInteractionTime(DeltaTime);
+	}
+}
+
+UEnhancedInputComponent* UInteractorComponent::GetInputComponent() const
+{
+	return CastChecked<UEnhancedInputComponent>(GetOwner()->InputComponent);
+}
+
+void UInteractorComponent::BindInteractionInputAction(UInputAction* InputAction)
+{
+	if (!InputAction)
+	{
+		return;
+	}
+
+	for (const FEnhancedInputActionEventBinding* Binding : InteractionActionEventBindings)
+	{
+		if (Binding->GetAction() == InputAction)
+		{
+			return;
+		}
+	}
+	
+	InteractionActionEventBindings.Add(&GetInputComponent()->BindAction(
+		InputAction, ETriggerEvent::Triggered, this, &ThisClass::HandleInteractionInputActionActivation, InputAction));
+}
+
+void UInteractorComponent::HandleInteractionInputActionActivation(UInputAction* InputAction)
+{
+	for (UInteractableComponent* Interactable : OverlappedInteractables)
+	{
+		if (Interactable->GetInteractableData().InteractionAction == InputAction)
+		{
+			InteractablesToActivate.Add(Interactable);
+		}
 	}
 }
