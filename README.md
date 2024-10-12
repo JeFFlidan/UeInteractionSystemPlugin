@@ -12,7 +12,7 @@ To make `Actor` visible for character with `Interactor Component`, you must add 
 * `Interactable_SphereTrigger` uses `Sphere Component` as an area that will fire some events upon entering.
 * `Interactable_BoxTrigger` uses `Box Component` as an area that will fire some events upon entering.
 
-`Interactable Component` can be configured if you need particular functionality. All settings you can see in the picture below.
+`Interactable Component` can be configured if you need particular functionality. All settings you can see in the picture below:
 
 <p align="center">
     <img src="/Images/InteractableComponentSettings.png"/>
@@ -23,9 +23,9 @@ To make your `Interactable Component` fire `On Interact` event, you must have so
 To make `Interactable Component` fire `On Interact` event after holding button some time, you must set up `Interaction Input Type` to `Hold` and configure `Interaction Duration` to a non-zero time.
 
 `Interactable Component` has three delegates for now:
-* `On Begin Overlap` is broadcasting (activating) after character with `Interactor Component` enters sphere or box area;
-* `On End OVerlap` is broadcasting after character with `Interactor Component` leaves sphere or box area;
-* `On Interact` is broadcasting after calling `Interact` method of `Interactor Component`. In almost all cases, this method must be bound to an `Input Action`.
+* `On Begin Overlap` is broadcast (activated) after character with `Interactor Component` enters sphere or box area;
+* `On End OVerlap` is broadcast after character with `Interactor Component` leaves sphere or box area;
+* `On Interact` is broadcast after calling `Interact` method of `Interactor Component`. In almost all cases, this method must be bound to an `Input Action`.
 
 An example of binding a custom event to one of the delegate is below:
 
