@@ -17,5 +17,5 @@ AInteractable_Base::AInteractable_Base() : Super()
 
 FAttachmentTransformRules AInteractable_Base::GetAttachmentRules() const
 {
-	return FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false);
+	return FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, false);
 }

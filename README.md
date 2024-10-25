@@ -24,7 +24,7 @@ To make `Interactable Component` fire `On Interact` event after holding button s
 
 `Interactable Component` has three delegates for now:
 * `On Begin Overlap` is broadcast (activated) after character with `Interactor Component` enters sphere or box area;
-* `On End OVerlap` is broadcast after character with `Interactor Component` leaves sphere or box area;
+* `On End Overlap` is broadcast after character with `Interactor Component` leaves sphere or box area;
 * `On Interact` is broadcast after calling `Interact` method of `Interactor Component`. In almost all cases, this method must be bound to an `Input Action`.
 
 An example of binding a custom event to one of the delegate is below:
